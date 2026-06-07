@@ -1,0 +1,1376 @@
+// PlusUltra Database Schema
+// PostgreSQL with pgvector and PostGIS extensions
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector", schema: "public"), postgis(map: "postgis", schema: "public")]
+}
+
+// ================================
+// User Management
+// ================================
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  username          String         @unique
+  name              String?
+  firstName         String?
+  lastName          String?
+  avatarUrl         String?
+  password          String?        // For auth (will migrate to Clerk later)
+  passwordHash      String?        // Legacy field
+  role              UserRole       @default(USER)
+  tier              String         @default("free") // 'free' | 'starter' | 'pro' | 'enterprise'
+  emailVerified     Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  lastLoginAt       DateTime?
+  isActive          Boolean        @default(true)
+
+  // Relationships
+  organizations     OrganizationMember[]
+  projects          ProjectMember[]
+  sessions          Session[]
+  apiKeys           ApiKey[]
+  auditLogs         AuditLog[]
+  tokenUsage        TokenUsage[]
+  subscriptions     Subscription[]
+  githubIntegrations GithubIntegration[]
+  userSettings       UserSettings?
+  modelVotes         ModelVote[]
+  revenueAgreements  RevenueAgreement[]
+  revenueReports     RevenueReport[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model UserSettings {
+  userId                     String    @id @unique
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revenueTrackingConsent     Boolean   @default(false)
+  revenueConsentAcceptedAt   DateTime?
+  emailNotifications         Boolean   @default(true)
+  projectUpdates             Boolean   @default(true)
+  collaborationAlerts        Boolean   @default(true)
+  marketingEmails            Boolean   @default(false)
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+
+  @@map("user_settings")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model ApiKey {
+  id           String    @id @default(uuid())
+  userId       String
+  name         String
+  keyHash      String    @unique
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  isActive     Boolean   @default(true)
+  scopes       String[]
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([keyHash])
+  @@map("api_keys")
+}
+
+// ================================
+// Organization & Teams
+// ================================
+
+model Organization {
+  id              String               @id @default(uuid())
+  name            String
+  slug            String               @unique
+  description     String?
+  logoUrl         String?
+  website         String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  members         OrganizationMember[]
+  projects        Project[]
+  subscriptions   Subscription[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           OrgRole      @default(MEMBER)
+  joinedAt       DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ================================
+// Projects & Deployments
+// ================================
+
+model Project {
+  id                String         @id @default(uuid())
+  organizationId    String
+  name              String
+  slug              String
+  description       String?
+  repositoryUrl     String?
+  framework         String?
+  language          String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members           ProjectMember[]
+  deployments       Deployment[]
+  databases         Database[]
+  builds            Build[]
+  environments      Environment[]
+  revenueAgreements RevenueAgreement[]
+  revenueReports    RevenueReport[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(DEVELOPER)
+  joinedAt  DateTime    @default(now())
+
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+enum ProjectRole {
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+model Environment {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  type        EnvType
+  variables   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("environments")
+}
+
+enum EnvType {
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+}
+
+// ================================
+// Database Management
+// ================================
+
+model Database {
+  id              String         @id @default(uuid())
+  projectId       String
+  name            String
+  type            DatabaseType
+  provider        String         // supabase, railway, vercel-postgres, etc.
+  connectionUrl   String         @db.Text
+  status          DatabaseStatus @default(PROVISIONING)
+  region          String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  metadata        Json?
+
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  migrations      Migration[]
+
+  @@index([projectId])
+  @@index([status])
+  @@map("databases")
+}
+
+enum DatabaseType {
+  POSTGRESQL
+  MYSQL
+  MONGODB
+  REDIS
+}
+
+enum DatabaseStatus {
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  FAILED
+}
+
+model Migration {
+  id             String   @id @default(uuid())
+  databaseId     String
+  name           String
+  checksum       String
+  executedAt     DateTime @default(now())
+  executionTime  Int      // milliseconds
+  success        Boolean
+  errorMessage   String?  @db.Text
+
+  database       Database @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+
+  @@index([databaseId])
+  @@index([executedAt])
+  @@map("migrations")
+}
+
+// ================================
+// Build & Deployment
+// ================================
+
+model Build {
+  id              String      @id @default(uuid())
+  projectId       String
+  branch          String
+  commitSha       String
+  commitMessage   String?
+  status          BuildStatus @default(PENDING)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  duration        Int?        // milliseconds
+  logUrl          String?
+  artifactUrl     String?
+  createdAt       DateTime    @default(now())
+  metadata        Json?
+
+  project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deployments     Deployment[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("builds")
+}
+
+enum BuildStatus {
+  PENDING
+  QUEUED
+  BUILDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+model Deployment {
+  id            String           @id @default(uuid())
+  projectId     String
+  buildId       String?
+  environment   String
+  url           String?
+  status        DeploymentStatus @default(PENDING)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  metadata      Json?
+
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  build         Build?           @relation(fields: [buildId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("deployments")
+}
+
+enum DeploymentStatus {
+  PENDING
+  DEPLOYING
+  ACTIVE
+  FAILED
+  CANCELLED
+}
+
+// ================================
+// AI & Code Generation
+// ================================
+
+model CodeGeneration {
+  id             String   @id @default(uuid())
+  userId         String?
+  projectId      String?
+  prompt         String   @db.Text
+  generatedCode  String   @db.Text
+  language       String
+  framework      String?
+  model          String   // gpt-4, claude-3, etc.
+  tokensUsed     Int
+  createdAt      DateTime @default(now())
+  metadata       Json?
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([createdAt])
+  @@map("code_generations")
+}
+
+model ModelVote {
+  id               String   @id @default(cuid())
+  timestamp        DateTime @default(now())
+  taskType         String
+  winner           String
+  claudeVote       Int
+  gpt5Vote         Int
+  geminiVote       Int
+  grokVote         Int
+  deepseekVote     Int
+  agreement        Float
+  userId           String
+  sessionId        String?
+  consensusReached Boolean
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([taskType])
+  @@index([winner])
+  @@index([timestamp])
+  @@map("model_votes")
+}
+
+// Vector embeddings for semantic search
+model Embedding {
+  id            String                                @id @default(uuid())
+  content       String                                @db.Text
+  embedding     Unsupported("vector(1536)")?          // pgvector type
+  metadata      Json?
+  createdAt     DateTime                              @default(now())
+
+  @@map("embeddings")
+}
+
+// ================================
+// Token Economy & Billing
+// ================================
+
+model TokenUsage {
+  id            String    @id @default(uuid())
+  userId        String
+  projectId     String?
+  model         String
+  inputTokens   Int
+  outputTokens  Int
+  totalTokens   Int
+  cost          Float     // USD
+  timestamp     DateTime  @default(now())
+  operation     String    // code-gen, chat, search, etc.
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([timestamp])
+  @@map("token_usage")
+}
+
+
+
+
+
+// ================================
+// GitHub Integration
+// ================================
+
+model GithubIntegration {
+  id              String   @id @default(uuid())
+  userId          String
+  installationId  String   @unique
+  accessToken     String   @db.Text
+  refreshToken    String?  @db.Text
+  expiresAt       DateTime?
+  repositories    Json     // Array of repo data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("github_integrations")
+}
+
+// ================================
+// Audit & Compliance
+// ================================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  resource    String
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([resource])
+  @@map("audit_logs")
+}
+
+// ================================
+// Analytics & Monitoring
+// ================================
+
+model AnalyticsEvent {
+  id          String   @id @default(uuid())
+  eventName   String
+  userId      String?
+  projectId   String?
+  properties  Json?
+  timestamp   DateTime @default(now())
+
+  @@index([eventName])
+  @@index([userId])
+  @@index([projectId])
+  @@index([timestamp])
+  @@map("analytics_events")
+}
+
+// ================================
+// Job Queue System
+// ================================
+
+model JobQueue {
+  id            String    @id @default(uuid())
+  type          String    // Job type identifier
+  data          Json      // Job payload data
+  priority      String    @default("normal") // 'low' | 'normal' | 'high' | 'critical'
+  status        String    @default("pending") // 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'retrying' | 'dead_letter'
+  maxRetries    Int       @default(3) @map("max_retries")
+  retryCount    Int       @default(0) @map("retry_count")
+  scheduledAt   DateTime? @map("scheduled_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  failedAt      DateTime? @map("failed_at")
+  error         String?   @db.Text
+  errorMessage  String?   @db.Text @map("error_message")
+  result        Json?
+  lockedUntil   DateTime? @map("locked_until")
+  lockedBy      String?   @map("locked_by")
+  metadata      Json?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([type])
+  @@index([priority])
+  @@index([scheduledAt])
+  @@index([createdAt])
+  @@map("job_queue")
+}
+
+// ================================
+// TCI A/B Testing
+// ================================
+
+model TCIABTest {
+  id            String    @id @default(cuid())
+  name          String
+  description   String    @db.Text
+  layer         String    // 'visual' | 'causal' | 'historical' | 'logic' | 'synthesis' | 'implementation'
+  variants      Json      // Array of PromptVariant
+  trafficSplit  Int[]     // Percentage for each variant (must sum to 100)
+  startDate     DateTime
+  endDate       DateTime?
+  minSampleSize Int       @default(100)
+  active        Boolean   @default(true)
+  metrics       Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  results       TCIABTestResult[]
+
+  @@index([layer])
+  @@index([active])
+  @@index([startDate])
+  @@map("tci_ab_tests")
+}
+
+model TCIABTestResult {
+  id            String    @id @default(cuid())
+  testId        String
+  variantId     String
+  accuracy      Float?
+  confidence    Float
+  executionTime Int       // milliseconds
+  verdict       String    // 'SHIP' | 'REFACTOR' | 'REJECT'
+  wasHelpful    Boolean?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  test          TCIABTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+  @@index([variantId])
+  @@index([verdict])
+  @@index([createdAt])
+  @@map("tci_ab_test_results")
+}
+
+// Temporal Code Intelligence (TCI) Database Schema
+// Stores analysis results, outcomes, patterns, and learning data
+
+model TCIAnalysis {
+  id                String   @id @default(cuid())
+  userId            String
+  codeHash          String   // SHA-256 hash of analyzed code
+  code              String   @db.Text
+  context           Json     // Project context (imports, dependencies, etc.)
+
+  // Analysis Results
+  visualInsights    Json     // VisualInsights from DeepSeek OCR
+  causalChain       Json?    // CausalChain from Claude (null if no change proposed)
+  historicalInsights Json    // HistoricalInsights from GPT-5
+  logicVerification Json     // LogicVerification from Grok
+  finalVerdict      Json     // TCIVerdict from Gemini synthesis
+
+  // Metrics
+  verdict           String   // 'SHIP' | 'REFACTOR' | 'REJECT' (quick access)
+  confidence        Float    // 0-1 overall confidence
+  overallRisk       Float    // 0-10 risk score
+  timeElapsedMs     Int      // Time taken for analysis
+  costUSD           Float    // Cost of analysis
+
+  // Metadata
+  analysisType      String   // 'full' | 'quick' (for tier-based access)
+  userTier          String   // 'free' | 'starter' | 'pro' | 'enterprise'
+  createdAt         DateTime @default(now())
+
+  // Relations
+  outcome           TCIOutcome?
+
+  @@index([userId, createdAt])
+  @@index([codeHash])
+}
+
+model TCIOutcome {
+  id              String       @id @default(cuid())
+  analysisId      String       @unique
+  analysis        TCIAnalysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  // Actual Outcome
+  status          String       // 'shipped' | 'refactored' | 'rejected'
+  bugsFound       Json         // Array of actual bugs discovered
+  breakingChanges Json         // Array of actual breaking changes
+  userFeedback    String?      @db.Text
+
+  // Accuracy Tracking
+  visualCorrect   Boolean      // Was visual analysis accurate?
+  causalCorrect   Boolean      // Was causal analysis accurate?
+  historicalCorrect Boolean    // Was historical analysis accurate?
+  logicCorrect    Boolean      // Was logic verification accurate?
+  synthesisCorrect Boolean     // Was synthesis accurate?
+  overallAccuracy Float        // 0-1 overall accuracy
+
+  // Metadata
+  createdAt       DateTime     @default(now())
+
+  @@index([createdAt])
+}
+
+model TCIPattern {
+  id              String   @id @default(cuid())
+
+  // Pattern Definition
+  name            String
+  description     String   @db.Text
+  category        String   // 'bug' | 'vulnerability' | 'anti-pattern' | 'best-practice'
+  severity        String   // 'HIGH' | 'MEDIUM' | 'LOW'
+
+  // Pattern Matching
+  codeSignature   String   @db.Text  // Regex or AST pattern
+  visualSignature Json?              // Visual patterns (color, density, etc.)
+
+  // Statistics
+  occurrenceCount Int      @default(0)
+  detectionCount  Int      @default(0)  // How many times TCI detected it
+  missedCount     Int      @default(0)  // How many times TCI missed it
+  accuracy        Float    @default(0)  // detectionCount / (detectionCount + missedCount)
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([name])
+  @@index([category, severity])
+  @@index([accuracy])
+}
+
+model ModelWeight {
+  id              String   @id @default(cuid())
+
+  // Model Info
+  model           String   // 'deepseek' | 'claude' | 'gpt5' | 'grok' | 'gemini'
+  analysisType    String   // 'visual' | 'causal' | 'historical' | 'logic' | 'synthesis'
+
+  // Weights
+  currentWeight   Float    @default(1.0)
+  accuracy        Float    @default(0.5)
+  totalAnalyses   Int      @default(0)
+  correctPredictions Int   @default(0)
+
+  // Metadata
+  lastUpdated     DateTime @updatedAt
+
+  @@unique([model, analysisType])
+  @@index([accuracy])
+}
+
+model TCIFeedback {
+  id              String   @id @default(cuid())
+  userId          String
+  analysisId      String
+
+  // Feedback
+  rating          Int      // 1-5 stars
+  wasHelpful      Boolean
+  comment         String?  @db.Text
+
+  // Specific Layer Feedback
+  visualHelpful   Boolean?
+  causalHelpful   Boolean?
+  historicalHelpful Boolean?
+  logicHelpful    Boolean?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([analysisId])
+  @@index([createdAt])
+}
+
+// ================================
+// Real-Time Collaboration
+// ================================
+
+model CollaborationDocument {
+  id            String   @id @default(uuid())
+  workspaceId   String
+  filePath      String
+  language      String
+  state         Bytes    // Y.js CRDT document state
+  lastModified  DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([filePath])
+  @@map("collaboration_documents")
+}
+
+model CollaborationSession {
+  id            String   @id @default(uuid())
+  documentId    String
+  workspaceId   String
+  filePath      String
+  language      String
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+  lastActivity  DateTime @default(now())
+  isActive      Boolean  @default(true)
+  participants  Json     // Array of SessionParticipant
+  tciEnabled    Boolean  @default(false)
+  metadata      Json?
+
+  activities    CollaborationActivity[]
+  tciResults    CollaborativeTCIResult[]
+  notifications CollaborationNotification[]
+
+  @@index([workspaceId])
+  @@index([documentId])
+  @@index([isActive])
+  @@index([lastActivity])
+  @@map("collaboration_sessions")
+}
+
+model CollaborationActivity {
+  id            String   @id @default(uuid())
+  sessionId     String
+  userId        String
+  activityType  String   // 'join' | 'leave' | 'edit' | 'cursor_move' | 'selection_change'
+  timestamp     DateTime @default(now())
+  metadata      Json?
+
+  session       CollaborationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("collaboration_activities")
+}
+
+model CollaborativeTCIResult {
+  id            String   @id @default(uuid())
+  sessionId     String
+  documentId    String
+  verdict       String   // 'SHIP' | 'REFACTOR' | 'REJECT'
+  confidence    Float
+  triggeredBy   String   // userId or 'system'
+  sharedWith    String[] // Array of user IDs
+  summary       Json     // Summary of analysis results
+  fullReport    Json     // Full TCI report
+  createdAt     DateTime @default(now())
+
+  session       CollaborationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([documentId])
+  @@index([createdAt])
+  @@map("collaborative_tci_results")
+}
+
+model CollaborationNotification {
+  id            String   @id @default(uuid())
+  userId        String
+  sessionId     String
+  type          String   // 'user_joined' | 'user_left' | 'tci_analysis_complete' | 'conflict'
+  title         String
+  message       String   @db.Text
+  data          Json?
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  session       CollaborationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("collaboration_notifications")
+}
+
+// ================================
+// Self-Healing System
+// ================================
+
+model SentryError {
+  id              String   @id @default(uuid())
+  sentryEventId   String   @unique
+  projectId       String?
+  environment     String   // production, staging, development
+  errorMessage    String   @db.Text
+  errorType       String   // TypeError, ReferenceError, etc.
+  stackTrace      String   @db.Text
+  filePath        String?
+  lineNumber      Int?
+  columnNumber    Int?
+  userContext     Json?    // User ID, session info
+  requestContext  Json?    // Request URL, method, headers
+  firstSeen       DateTime @default(now())
+  lastSeen        DateTime @default(now())
+  occurrenceCount Int      @default(1)
+  status          String   // new, healing, healed, failed, ignored, cooldown
+  severity        String   // fatal, error, warning, info
+  resolved        Boolean  @default(false)
+  resolvedAt      DateTime?
+
+  healingAttempts HealingAttempt[]
+
+  @@index([sentryEventId])
+  @@index([projectId])
+  @@index([status])
+  @@index([environment])
+  @@index([firstSeen])
+  @@map("sentry_errors")
+}
+
+model HealingAttempt {
+  id              String   @id @default(uuid())
+  errorId         String
+  analysisId      String?  // TCI analysis ID
+  triggerSource   String   // auto, manual, scheduled
+
+  // Fix details
+  fixCode         String   @db.Text
+  fixDescription  String   @db.Text
+  confidence      Float    // 0-1 TCI confidence
+
+  // Validation
+  testsPassed     Boolean  @default(false)
+  testsRun        Int      @default(0)
+  testsFailed     Int      @default(0)
+  sandboxId       String?
+  validationLogs  String?  @db.Text
+
+  // Deployment
+  deployed        Boolean  @default(false)
+  deploymentId    String?
+  rolledBack      Boolean  @default(false)
+  rollbackReason  String?  @db.Text
+
+  // Status tracking
+  status          String   // pending, analyzing, testing, deploying, deployed, failed, rolled_back
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  duration        Int?     // milliseconds
+
+  // Metadata
+  approvedBy      String?  // User ID if manual approval required
+  metadata        Json?
+
+  error           SentryError @relation(fields: [errorId], references: [id], onDelete: Cascade)
+  deployment      FixDeployment?
+
+  @@index([errorId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([confidence])
+  @@map("healing_attempts")
+}
+
+model FixDeployment {
+  id                  String   @id @default(uuid())
+  attemptId           String   @unique
+  projectId           String?
+  environment         String   // staging, production
+
+  // Deployment strategy
+  strategy            String   // blue_green, canary, immediate
+  deployedVersion     String?
+  previousVersion     String?
+
+  // Timing
+  deployedAt          DateTime @default(now())
+  rolledBackAt        DateTime?
+
+  // Health metrics
+  healthCheckPassed   Boolean  @default(false)
+  healthCheckDetails  Json?
+  errorRateBefore     Float?
+  errorRateAfter      Float?
+  responseTimeBefore  Float?
+  responseTimeAfter   Float?
+
+  // Traffic management
+  trafficPercentage   Int      @default(100)
+  canaryDuration      Int?     // minutes
+
+  // Rollback
+  autoRollback        Boolean  @default(true)
+  rollbackThreshold   Float    @default(0.05) // 5% error rate increase
+
+  attempt             HealingAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([projectId])
+  @@index([environment])
+  @@index([deployedAt])
+  @@map("fix_deployments")
+}
+
+model HealingConfig {
+  id                    String   @id @default(uuid())
+  projectId             String   @unique
+
+  // Enable/disable
+  enabled               Boolean  @default(false)
+  autoHealProduction    Boolean  @default(false)
+  autoHealStaging       Boolean  @default(true)
+
+  // Thresholds
+  minConfidence         Float    @default(0.85)
+  maxAttemptsPerHour    Int      @default(5)
+  maxAttemptsPerError   Int      @default(3)
+  cooldownPeriod        Int      @default(3600) // seconds
+
+  // Notification settings
+  notifyOnAttempt       Boolean  @default(true)
+  notifyOnSuccess       Boolean  @default(true)
+  notifyOnFailure       Boolean  @default(true)
+  notificationChannels  Json     // [slack, email, webhook]
+
+  // Safety settings
+  requireApproval       Boolean  @default(true)
+  emergencyKillSwitch   Boolean  @default(false)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("healing_configs")
+}
+
+model HealingMetrics {
+  id                    String   @id @default(uuid())
+  date                  DateTime @default(now())
+  projectId             String?
+
+  // Attempt metrics
+  totalAttempts         Int      @default(0)
+  successfulAttempts    Int      @default(0)
+  failedAttempts        Int      @default(0)
+  rolledBackAttempts    Int      @default(0)
+
+  // Performance
+  avgConfidence         Float?
+  avgTimeToFix          Int?     // milliseconds
+  avgTimeToValidate     Int?
+  avgTimeToDeploy       Int?
+
+  // Error metrics
+  totalErrors           Int      @default(0)
+  healedErrors          Int      @default(0)
+  unhealedErrors        Int      @default(0)
+
+  // Success rates
+  successRate           Float?
+  deploymentSuccessRate Float?
+
+  @@index([date])
+  @@index([projectId])
+  @@map("healing_metrics")
+}
+
+// ================================
+// Visual Bug Detection & Analysis
+// (Gemini Screen Capture Integration)
+// ================================
+
+model VisualBug {
+  id                String   @id @default(uuid())
+  sandboxId         String?  // Associated sandbox
+  projectId         String?  // Associated project
+  workspaceId       String?  // Associated workspace
+
+  // Bug classification
+  type              String   // layout, styling, content, accessibility, responsive, regression
+  severity          String   // critical, high, medium, low
+  status            String   @default("new") // new, analyzing, fixing, fixed, ignored
+
+  // Detection details
+  description       String   @db.Text
+  screenshotPath    String   // Path to screenshot
+  diffImagePath     String?  // Path to diff image (for regressions)
+  location          Json?    // { selector, x, y, width, height }
+
+  // Analysis metadata
+  detectedAt        DateTime @default(now())
+  detectedBy        String   @default("gemini") // gemini, deepseek, manual
+  confidence        Float    // 0-1
+  geminiAnalysis    Json?    // Full Gemini response
+
+  // Fix information
+  suggestedFix      String?  @db.Text
+  fixedAt           DateTime?
+  fixedBy           String?  // userId or "auto"
+  fixCode           String?  @db.Text
+
+  // Related visual bugs (for grouping)
+  relatedBugs       String[] // Array of bug IDs
+
+  // Healing attempt
+  healingAttemptId  String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([sandboxId])
+  @@index([projectId])
+  @@index([workspaceId])
+  @@index([status])
+  @@index([severity])
+  @@index([detectedAt])
+  @@map("visual_bugs")
+}
+
+model VisualRegressionTest {
+  id                    String   @id @default(uuid())
+  testName              String
+  sandboxId             String?
+  projectId             String?
+  workspaceId           String?
+  url                   String?
+
+  // Test configuration
+  viewport              Json     // { width, height }
+  threshold             Float    @default(0.05) // 5% pixel difference
+
+  // Baseline
+  baselineScreenshot    String
+  baselineCreatedAt     DateTime @default(now())
+  baselineUpdatedAt     DateTime @updatedAt
+
+  // Latest test
+  currentScreenshot     String?
+  diffImagePath         String?
+  lastTestAt            DateTime?
+
+  // Results
+  hasFailed             Boolean  @default(false)
+  pixelDifference       Int      @default(0)
+  diffPercentage        Float    @default(0)
+
+  // Gemini analysis (if regression detected)
+  regressionAnalysis    Json?
+
+  // Status
+  enabled               Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([testName, sandboxId])
+  @@index([sandboxId])
+  @@index([projectId])
+  @@index([hasFailed])
+  @@index([lastTestAt])
+  @@map("visual_regression_tests")
+}
+
+model VisualHealthCheck {
+  id                    String   @id @default(uuid())
+  sandboxId             String
+  projectId             String?
+  workspaceId           String?
+
+  // Health status
+  status                String   // healthy, degraded, unhealthy
+  overallScore          Int      // 0-100
+  accessibilityScore    Int?     // 0-100
+
+  // Screenshot
+  screenshotPath        String
+
+  // Issues detected
+  criticalIssues        Int      @default(0)
+  highIssues            Int      @default(0)
+  mediumIssues          Int      @default(0)
+  lowIssues             Int      @default(0)
+
+  // Regression
+  regressionDetected    Boolean  @default(false)
+
+  // Analysis metadata
+  analysisTime          Int?     // milliseconds
+  geminiResponse        Json?
+
+  // Timestamp
+  timestamp             DateTime @default(now())
+
+  @@index([sandboxId])
+  @@index([projectId])
+  @@index([timestamp])
+  @@index([status])
+  @@map("visual_health_checks")
+}
+
+model ScreenshotArchive {
+  id                String   @id @default(uuid())
+  sandboxId         String?
+  projectId         String?
+  workspaceId       String?
+
+  // Screenshot details
+  screenshotPath    String
+  screenshotType    String   // baseline, current, diff, component
+  url               String?
+  viewport          Json?    // { width, height }
+
+  // Associated test/bug
+  visualBugId       String?
+  regressionTestId  String?
+
+  // Metadata
+  capturedAt        DateTime @default(now())
+  fileSize          Int?     // bytes
+  expiresAt         DateTime? // For cleanup
+
+  @@index([sandboxId])
+  @@index([projectId])
+  @@index([capturedAt])
+  @@index([expiresAt])
+  @@map("screenshot_archives")
+}
+
+model VisualAnalysisConfig {
+  id                        String   @id @default(uuid())
+  projectId                 String   @unique
+
+  // Feature flags
+  enableVisualMonitoring    Boolean  @default(false)
+  enableRegressionTesting   Boolean  @default(false)
+  enableAccessibilityCheck  Boolean  @default(true)
+  enableResponsiveCheck     Boolean  @default(true)
+
+  // Monitoring settings
+  monitoringInterval        Int      @default(10000) // milliseconds
+  regressionThreshold       Float    @default(0.05)  // 5%
+
+  // Auto-fix settings
+  autoFixVisualBugs         Boolean  @default(false)
+  minConfidence             Float    @default(0.85)   // 85%
+
+  // Notification settings
+  notifyOnRegressions       Boolean  @default(true)
+  notifyOnCriticalIssues    Boolean  @default(true)
+  notificationChannels      Json     // [slack, email, webhook]
+
+  // Screenshot settings
+  screenshotRetentionDays   Int      @default(30)
+  captureFullPage           Boolean  @default(true)
+
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("visual_analysis_configs")
+}
+
+// ================================
+// Billing & Subscriptions
+// ================================
+
+model Plan {
+  id            String   @id @default(uuid())
+  name          String   @unique // 'free' | 'starter' | 'pro' | 'enterprise'
+  displayName   String
+  description   String?
+  priceMonthly  Int      @default(0) // in cents
+  priceYearly   Int      @default(0) // in cents
+  tokenPool     Int      @default(50000) // monthly token allocation
+  features      Json     // Feature flags and limits
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String       @id @default(uuid())
+  userId               String?
+  organizationId       String?
+  workspaceId          String?
+  planId               String
+  plan                 Plan         @relation(fields: [planId], references: [id])
+  tier                 String       @default("free") // 'free' | 'starter' | 'pro' | 'enterprise'
+  status               String       @default("active") // 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing'
+  stripeCustomerId     String?
+  stripeSubscriptionId String?      @unique
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  gracePeriodDays      Int          @default(7)
+  graceExpiresAt       DateTime?
+  cancelAtPeriodEnd    Boolean      @default(false)
+  autoTopupEnabled     Boolean      @default(false)
+  autoTopupThreshold   Int?         // Token threshold for auto-topup
+  autoTopupAmount      Int?         // Tokens to add on auto-topup
+  metadata             Json?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  user                 User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tokenPools           TokenPool[]
+  tokenPurchases       TokenPurchase[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+model TokenPool {
+  id             String   @id @default(uuid())
+  subscriptionId String
+  ownerId        String
+  ownerType      String   // 'user' | 'workspace'
+  periodStart    DateTime
+  periodEnd      DateTime
+  totalTokens    Int
+  usedTokens     Int      @default(0)
+  rolloverTokens Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, ownerId, ownerType, periodStart], name: "subscriptionId_owner_period")
+  @@index([subscriptionId])
+  @@index([ownerId])
+  @@index([periodStart])
+  @@map("token_pools")
+}
+
+model TokenPurchase {
+  id                    String   @id @default(uuid())
+  subscriptionId        String?
+  ownerId               String
+  ownerType             String   // 'user' | 'workspace'
+  stripePaymentIntentId String?
+  purchaseType          String   // 'topup' | 'admin_credit'
+  tokensPurchased       Int
+  amountCents           Int      @default(0)
+  adminId               String?
+  adminReason           String?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([subscriptionId])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("token_purchases")
+}
+
+// ================================
+// Revenue Tracking
+// ================================
+
+model RevenueAgreement {
+  id            String   @id @default(uuid())
+  userId        String
+  projectId     String
+  consented     Boolean  @default(false)
+  sharePercent  Float    @default(0.3) // 30% default share
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("revenue_agreements")
+}
+
+model RevenueReport {
+  id            String   @id @default(uuid())
+  userId        String
+  projectId     String
+  period        String   // 'YYYY-MM' format
+  grossRevenue  Float    @default(0)
+  platformShare Float    @default(0)
+  netRevenue    Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, period])
+  @@index([userId])
+  @@index([projectId])
+  @@index([period])
+  @@map("revenue_reports")
+}
+
+// ================================
+// Council Decision Memory
+// (Case-Based Reasoning for AI Council)
+// ================================
+
+model CouncilCase {
+  id                  String   @id @default(cuid())
+
+  // Scenario details
+  scenarioType        String   // 'architectural_choice' | 'bug_fix_approach' | etc.
+  scenarioDescription String   @db.Text
+  scenarioContext     Json     // Additional context for the scenario
+  codeSnippet         String?  @db.Text  // Associated code, if any
+
+  // Options considered
+  options             Json     // Array of CaseOption
+
+  // Decision made
+  chosenOptionId      String
+  decisionReasoning   String   @db.Text
+  votingResults       Json     // VotingResult with votes, consensus, unanimousVote
+
+  // Outcome tracking (recorded after implementation)
+  outcomeResult       String?  // 'success' | 'partial' | 'failure'
+  lessonsLearned      String[] // Lessons from the outcome
+  outcomeRecordedAt   DateTime?
+
+  // For similarity search
+  embedding           String?  @db.Text  // JSON-encoded vector embedding
+  tags                String[] // Tags for categorization
+
+  // Metadata
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([scenarioType])
+  @@index([outcomeResult])
+  @@index([createdAt])
+  @@index([tags])
+  @@map("council_cases")
+}

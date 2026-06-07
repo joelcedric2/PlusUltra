@@ -1,0 +1,565 @@
+/* Import distinctive fonts - MUST be first */
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   PLUSULTRA DESIGN SYSTEM - Luxury Tech Aesthetic
+
+   Philosophy: Deep, rich darks with luminous accents. Interfaces that feel
+   like piloting something sophisticated and expensive. Glassmorphism that
+   behaves like liquid crystal displays with depth and dimension.
+
+   Typography: Clash Display (headings) + Satoshi (body)
+   Colors: Cyan accent, Purple secondary, Gold premium
+   ============================================================================= */
+
+@layer base {
+  :root {
+    /* =========================================================================
+       LIGHT THEME - Premium Neo-Organic
+       Clean, professional with vibrant accents
+       ========================================================================= */
+    --background: 220 14% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Sophisticated neutral primary */
+    --primary: 222 47% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Light neutral secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Vibrant cyan accent - the signature PlusUltra color */
+    --accent: 189 94% 43%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Premium gold for upgrades, achievements */
+    --gold: 43 96% 56%;
+    --gold-foreground: 222 47% 11%;
+
+    /* Rich purple for gradients and depth */
+    --purple: 271 76% 53%;
+    --purple-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 189 94% 43%;
+
+    --radius: 1rem;
+
+    /* Glass effect variables - Light theme */
+    --glass-bg: 0 0% 100% / 0.85;
+    --glass-border: 220 13% 91% / 0.6;
+    --glass-blur: 24px;
+    --glass-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.1);
+
+    /* Gradient accents */
+    --gradient-accent: linear-gradient(135deg, hsl(189 94% 43%), hsl(271 76% 53%));
+    --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(35 91% 50%));
+    --gradient-surface: linear-gradient(180deg, hsl(220 14% 98%), hsl(220 14% 96%));
+
+    /* Animation timings */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 300ms;
+    --duration-slow: 500ms;
+  }
+
+  .dark {
+    /* =========================================================================
+       DARK THEME - Luxury Tech Command Center
+       Deep blacks with luminous accents. Bloomberg Terminal meets design studio.
+       ========================================================================= */
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 5%;
+
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222 47% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Cyan accent - more vibrant in dark mode */
+    --accent: 189 100% 50%;
+    --accent-foreground: 222 47% 5%;
+
+    /* Gold - warm and inviting */
+    --gold: 43 100% 60%;
+    --gold-foreground: 222 47% 5%;
+
+    /* Purple - rich and deep */
+    --purple: 271 91% 65%;
+    --purple-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 222 47% 5%;
+
+    --border: 222 47% 14%;
+    --input: 222 47% 14%;
+    --ring: 189 100% 50%;
+
+    /* Glass effect variables - Dark theme (liquid crystal aesthetic) */
+    --glass-bg: 222 47% 8% / 0.8;
+    --glass-border: 222 47% 18% / 0.5;
+    --glass-blur: 24px;
+    --glass-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+
+    /* Dark gradients */
+    --gradient-surface: linear-gradient(180deg, hsl(222 47% 7%), hsl(222 47% 5%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01' on, 'ss02' on;
+  }
+
+  /* Distinctive headings with Clash Display */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Clash Display', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* Selection styling */
+  ::selection {
+    background: hsl(var(--accent) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  /* Custom scrollbar - subtle and refined */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Focus visible for accessibility */
+  :focus-visible {
+    outline: 2px solid hsl(var(--accent));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* ==========================================================================
+     GLASSMORPHISM COMPONENTS - Liquid Crystal Aesthetic
+     Multiple depth levels for visual hierarchy
+     ========================================================================== */
+
+  /* Level 1: Subtle glass - for backgrounds and containers */
+  .glass-subtle {
+    @apply bg-card/60 backdrop-blur-lg border border-border/30;
+    box-shadow: var(--glass-shadow);
+  }
+
+  /* Level 2: Standard glass panel - for cards and content areas */
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-2xl border border-border/40;
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1px 0 0 hsl(var(--border) / 0.1);
+  }
+
+  /* Level 3: Elevated glass - for modals and overlays */
+  .glass-elevated {
+    @apply bg-card/90 backdrop-blur-3xl border border-border/50;
+    box-shadow:
+      0 24px 48px -12px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 0 hsl(var(--border) / 0.2);
+  }
+
+  /* Interactive glass button */
+  .glass-button {
+    @apply bg-card/50 backdrop-blur-xl border border-border/40;
+    @apply hover:bg-card/70 hover:border-border/60;
+    @apply active:bg-card/80 active:scale-[0.98];
+    @apply transition-all duration-200;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .glass-button:hover {
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Glass input field */
+  .glass-input {
+    @apply bg-card/40 backdrop-blur-lg border border-border/30;
+    @apply focus:border-accent/50 focus:bg-card/60;
+    @apply transition-all duration-200;
+  }
+
+  /* ==========================================================================
+     GRADIENT UTILITIES
+     ========================================================================== */
+
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  .gradient-gold {
+    background: var(--gradient-gold);
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-accent);
+  }
+
+  .gradient-text-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-gold);
+  }
+
+  /* Subtle gradient border effect */
+  .gradient-border {
+    position: relative;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--gradient-accent);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* ==========================================================================
+     GLOW EFFECTS - Subtle, not pulsing
+     ========================================================================== */
+
+  /* Accent glow - static, not animated */
+  .glow-accent {
+    box-shadow:
+      0 0 20px hsl(var(--accent) / 0.2),
+      0 0 40px hsl(var(--accent) / 0.1);
+  }
+
+  /* Gold/premium glow */
+  .glow-gold {
+    box-shadow:
+      0 0 20px hsl(var(--gold) / 0.2),
+      0 0 40px hsl(var(--gold) / 0.1);
+  }
+
+  /* Purple depth glow */
+  .glow-purple {
+    box-shadow:
+      0 0 20px hsl(var(--purple) / 0.2),
+      0 0 40px hsl(var(--purple) / 0.1);
+  }
+
+  /* Hover glow transition */
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+
+  .hover-glow:hover {
+    box-shadow:
+      0 0 24px hsl(var(--accent) / 0.25),
+      0 0 48px hsl(var(--accent) / 0.12);
+  }
+
+  /* ==========================================================================
+     SKELETON LOADING - Shimmer animation (acceptable motion)
+     ========================================================================== */
+
+  .skeleton {
+    @apply relative overflow-hidden bg-muted/30 rounded;
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.05),
+      transparent
+    );
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* ==========================================================================
+     BUTTON VARIANTS
+     ========================================================================== */
+
+  /* Primary action button with gradient */
+  .btn-primary {
+    @apply bg-gradient-to-r from-accent to-purple;
+    @apply text-accent-foreground font-medium;
+    @apply shadow-lg shadow-accent/25;
+    @apply hover:shadow-xl hover:shadow-accent/30;
+    @apply active:scale-[0.98];
+    @apply transition-all duration-200;
+  }
+
+  /* Secondary/ghost button */
+  .btn-ghost {
+    @apply bg-transparent hover:bg-muted/50;
+    @apply text-foreground;
+    @apply transition-colors duration-200;
+  }
+
+  /* Outline button */
+  .btn-outline {
+    @apply bg-transparent border border-border;
+    @apply hover:bg-muted/30 hover:border-muted-foreground/30;
+    @apply transition-all duration-200;
+  }
+
+  /* ==========================================================================
+     CARD VARIANTS
+     ========================================================================== */
+
+  /* Interactive card with hover lift */
+  .card-interactive {
+    @apply glass-panel rounded-xl;
+    @apply transition-all duration-300;
+    @apply hover:-translate-y-1;
+    @apply cursor-pointer;
+  }
+
+  .card-interactive:hover {
+    box-shadow:
+      0 20px 40px -12px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 0 hsl(var(--border) / 0.2);
+  }
+
+  /* Featured/highlighted card */
+  .card-featured {
+    @apply glass-elevated rounded-2xl;
+    @apply border-accent/30;
+  }
+
+  /* ==========================================================================
+     FORM ELEMENTS
+     ========================================================================== */
+
+  .input-glass {
+    @apply w-full px-4 py-3 rounded-xl;
+    @apply glass-input;
+    @apply text-foreground placeholder:text-muted-foreground/60;
+    @apply focus:outline-none focus:ring-2 focus:ring-accent/30;
+  }
+
+  /* ==========================================================================
+     ANIMATIONS - Entrance animations (CSS-only fallback)
+     ========================================================================== */
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s var(--ease-out-expo) forwards;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s var(--ease-out-expo) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.4s var(--ease-out-expo) forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.5s var(--ease-out-expo) forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.5s var(--ease-out-expo) forwards;
+  }
+
+  /* ==========================================================================
+     BACKDROP UTILITIES
+     ========================================================================== */
+
+  .backdrop-blur-3xl {
+    backdrop-filter: blur(64px);
+    -webkit-backdrop-filter: blur(64px);
+  }
+
+  /* ==========================================================================
+     NOISE TEXTURE OVERLAY (optional - for depth)
+     ========================================================================== */
+
+  .noise-overlay {
+    position: relative;
+  }
+
+  .noise-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ==========================================================================
+     RESPONSIVE UTILITIES
+     ========================================================================== */
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ==========================================================================
+     DIALOG/MODAL OVERRIDES
+     ========================================================================== */
+
+  /* Ensure modals have proper glass styling */
+  [role="dialog"] {
+    @apply glass-elevated;
+  }
+}
+
+@layer utilities {
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Prevent text selection */
+  .select-none {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* GPU acceleration hint */
+  .gpu {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+}

@@ -1,0 +1,39 @@
+// Add these models to your schema.prisma file for A/B Testing
+
+model TCIABTest {
+  id            String   @id @default(cuid())
+  name          String
+  description   String
+  layer         String   // visual, causal, historical, logic, synthesis, implementation
+  variants      Json     // Array of PromptVariant
+  trafficSplit  Json     // Array of percentages
+  startDate     DateTime
+  endDate       DateTime?
+  minSampleSize Int
+  active        Boolean  @default(true)
+  metrics       Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  results TCIABTestResult[]
+
+  @@index([layer, active])
+  @@index([startDate, endDate])
+}
+
+model TCIABTestResult {
+  id            String   @id @default(cuid())
+  testId        String
+  variantId     String
+  accuracy      Float?
+  confidence    Float
+  executionTime Float
+  verdict       String   // SHIP, REFACTOR, REJECT
+  wasHelpful    Boolean?
+  createdAt     DateTime @default(now())
+
+  test TCIABTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId, variantId])
+  @@index([createdAt])
+}

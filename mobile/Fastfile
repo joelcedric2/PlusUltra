@@ -1,0 +1,278 @@
+# Fastfile for PlusUltra Mobile App
+# This file contains lanes for building, archiving, and distributing iOS and Android apps
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Build iOS app for development"
+  lane :build do
+    setup_ci if ENV['CI']
+    match(type: "development", readonly: is_ci)
+
+    build_ios_app(
+      scheme: "PlusUltra",
+      configuration: "Debug",
+      export_method: "development",
+      output_directory: "build/ios",
+      clean: true
+    )
+  end
+
+  desc "Archive iOS app for distribution"
+  lane :archive do
+    setup_ci if ENV['CI']
+    match(type: "appstore", readonly: is_ci)
+
+    build_ios_app(
+      scheme: "PlusUltra",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build/ios",
+      clean: true,
+      include_bitcode: false
+    )
+  end
+
+  desc "Upload iOS app to TestFlight"
+  lane :upload_to_testflight do
+    archive
+
+    upload_to_testflight(
+      app_identifier: "com.plusultra.app",
+      username: ENV["APPLE_ID"],
+      team_id: ENV["APPLE_TEAM_ID"],
+      skip_waiting_for_build_processing: true,
+      # Comprehensive submission metadata
+      submit_for_review: false, # Keep in TestFlight for now
+      demo_account_required: true,
+      demo_account: {
+        username: "demo@plusultra.dev",
+        password: "Demo123!"
+      },
+      review_information: {
+        contact_first_name: "PlusUltra",
+        contact_last_name: "Team",
+        contact_phone: "+1-555-0123",
+        contact_email: "review@plusultra.dev",
+        demo_username: "demo@plusultra.dev",
+        demo_password: "Demo123!",
+        notes: "PlusUltra is an AI-powered app development platform that transforms natural language descriptions into production-ready applications. This build includes real-time collaboration, multi-platform exports, and enterprise-grade security features."
+      }
+    )
+  end
+
+  desc "Deploy iOS app to App Store"
+  lane :upload_to_appstore do
+    archive
+
+    upload_to_app_store(
+      app_identifier: "com.plusultra.app",
+      username: ENV["APPLE_ID"],
+      team_id: ENV["APPLE_TEAM_ID"],
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      # Comprehensive submission metadata
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        add_id_info_limits_tracking: true,
+        add_id_info_serves_ads: false,
+        add_id_info_tracks_action: false,
+        add_id_info_tracks_install: false,
+        content_rights_has_rights: true,
+        content_rights_contains_third_party_content: false,
+        export_compliance_platform: ['ios'],
+        export_compliance_compliance_required: false,
+        export_compliance_encryption_updated: false,
+        export_compliance_app_type: nil,
+        export_compliance_uses_encryption: false,
+        export_compliance_is_exempt: true,
+        export_compliance_contains_proprietary_cryptography: false,
+        export_compliance_contains_third_party_cryptography: false
+      }
+    )
+  end
+
+  desc "Deploy iOS app with canary rollout (10% of users)"
+  lane :canary_ios do
+    archive
+
+    upload_to_app_store(
+      app_identifier: "com.plusultra.app",
+      username: ENV["APPLE_ID"],
+      team_id: ENV["APPLE_TEAM_ID"],
+      submit_for_review: false,
+      automatic_release: false,
+      phased_release: true,
+      phased_release_initial_phase: 0.1, # 10% rollout
+      phased_release_current_phase: 0.1,
+      # Metadata for phased release
+      submission_information: {
+        notes: "Canary release for PlusUltra iOS app. Limited rollout for testing and monitoring."
+      }
+    )
+  end
+
+  desc "Rollback iOS app to previous version"
+  lane :rollback_ios do
+    # Reject current submission if in review
+    reject_current_submission(
+      app_identifier: "com.plusultra.app",
+      username: ENV["APPLE_ID"],
+      team_id: ENV["APPLE_TEAM_ID"]
+    )
+
+    # Revert to previous build (would need version management)
+    print("iOS rollback completed - check App Store Connect for manual version management")
+  end
+
+  desc "Promote iOS canary to full release"
+  lane :promote_ios_full do
+    # Update phased release to 100%
+    update_phased_release(
+      app_identifier: "com.plusultra.app",
+      username: ENV["APPLE_ID"],
+      team_id: ENV["APPLE_TEAM_ID"],
+      phased_release_current_phase: 1.0 # 100% rollout
+    )
+  end
+end
+
+platform :android do
+  desc "Build Android app for development"
+  lane :build do
+    gradle(task: "clean", project_dir: "android/")
+    gradle(task: "assemble", build_type: "Debug", project_dir: "android/")
+  end
+
+  desc "Build Android app for release"
+  lane :bundle do
+    gradle(task: "clean", project_dir: "android/")
+    gradle(task: "bundle", build_type: "Release", project_dir: "android/")
+  end
+
+  desc "Upload Android app to Google Play Store (Internal Testing)"
+  lane :supply do
+    bundle
+
+    upload_to_play_store(
+      track: "internal",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      json_key: ENV["GOOGLE_PLAY_JSON_KEY"],
+      package_name: "com.plusultra.app",
+      # Comprehensive submission metadata
+      release_status: "draft", # Keep as draft for internal testing
+      skip_upload_apk: true,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false,
+      # Review information
+      submission_information: {
+        notes: "PlusUltra Android app for internal testing. Features AI-powered app development, real-time collaboration, and enterprise-grade security. Demo credentials: demo@plusultra.dev / Demo123!",
+        contact_name: "PlusUltra Team",
+        contact_email: "review@plusultra.dev",
+        contact_phone: "+1-555-0123"
+      }
+    )
+  end
+
+  desc "Promote Android app to Beta"
+  lane :promote_to_beta do
+    upload_to_play_store(
+      track: "beta",
+      track_promote_to: "beta",
+      json_key: ENV["GOOGLE_PLAY_JSON_KEY"],
+      package_name: "com.plusultra.app"
+    )
+  end
+
+  desc "Promote Android app to Production"
+  lane :promote_to_production do
+    upload_to_play_store(
+      track: "production",
+      track_promote_to: "production",
+      json_key: ENV["GOOGLE_PLAY_JSON_KEY"],
+      package_name: "com.plusultra.app"
+    )
+  end
+
+  desc "Deploy Android app with staged rollout (20% initial)"
+  lane :canary_android do
+    bundle
+
+    upload_to_play_store(
+      track: "beta",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      json_key: ENV["GOOGLE_PLAY_JSON_KEY"],
+      package_name: "com.plusultra.app",
+      # Staged rollout configuration
+      rollout_fraction: 0.2, # 20% initial rollout
+      # Metadata for staged release
+      submission_information: {
+        notes: "Staged rollout for PlusUltra Android app. Gradual release for monitoring and testing."
+      }
+    )
+  end
+
+  desc "Rollback Android app to previous track"
+  lane :rollback_android do
+    # Move back to alpha track (would need track management)
+    upload_to_play_store(
+      track: "alpha",
+      track_promote_to: "alpha",
+      json_key: ENV["GOOGLE_PLAY_JSON_KEY"],
+      package_name: "com.plusultra.app",
+      # Rollback metadata
+      submission_information: {
+        notes: "Rollback to previous stable version due to issues detected in current release."
+      }
+    )
+  end
+
+  desc "Promote Android staged rollout to 100%"
+  lane :promote_android_full do
+    upload_to_play_store(
+      track: "beta",
+      track_promote_to: "production",
+      rollout_fraction: 1.0, # 100% rollout
+      json_key: ENV["GOOGLE_PLAY_JSON_KEY"],
+      package_name: "com.plusultra.app"
+    )
+  end
+end
+
+desc "Run all tests"
+lane :test do
+  run_tests(workspaces: "PlusUltra")
+end
+
+desc "Lint code"
+lane :lint do
+  swiftlint(
+    mode: :lint,
+    output_file: "swiftlint.result.xml",
+    config_file: ".swiftlint.yml",
+    ignore_exit_status: true
+  )
+end
+
+desc "Generate screenshots for App Store"
+lane :screenshots do
+  capture_screenshots(
+    workspace: "PlusUltra.xcworkspace",
+    scheme: "PlusUltra",
+    output_directory: "screenshots"
+  )
+end
+
+# Helper methods
+def setup_ci
+  create_keychain(
+    name: ENV["MATCH_KEYCHAIN_NAME"],
+    password: ENV["MATCH_KEYCHAIN_PASSWORD"],
+    default_keychain: true,
+    unlock: true,
+    timeout: 3600,
+    lock_when_sleeps: false
+  )
+end

@@ -1,0 +1,57 @@
+{
+  "storeConfig": {
+    "name": "PlusUltra",
+    "bundleId": "com.plusultra.app",
+    "version": "1.0.0",
+    "buildNumber": "1"
+  },
+  "localization": {
+    "default": "en-US",
+    "supported": ["en-US", "es-ES", "fr-FR", "de-DE", "ja-JP"]
+  },
+  "metadata": {
+    "name": "PlusUltra",
+    "subtitle": "AI-Powered App Development Platform",
+    "description": "Transform natural language descriptions into production-ready React Native applications. PlusUltra is the most advanced AI development platform with real-time collaboration, multi-platform exports, and enterprise-grade features.",
+    "keywords": [
+      "AI",
+      "app development",
+      "React Native",
+      "code generation",
+      "collaboration",
+      "enterprise",
+      "productivity"
+    ],
+    "category": {
+      "primary": "PRODUCTIVITY",
+      "secondary": ["DEVELOPER_TOOLS", "BUSINESS"]
+    },
+    "supportUrl": "https://plusultra.dev/support",
+    "marketingUrl": "https://plusultra.dev",
+    "privacyUrl": "https://plusultra.dev/privacy"
+  },
+  "review": {
+    "firstName": "PlusUltra",
+    "lastName": "Team",
+    "phoneNumber": "+1-555-0123",
+    "emailAddress": "review@plusultra.dev",
+    "demoAccount": {
+      "username": "demo@plusultra.dev",
+      "password": "Demo123!"
+    }
+  },
+  "assets": {
+    "icon": "./assets/icon.png",
+    "screenshots": {
+      "phone": ["./screenshots/phone-1.png", "./screenshots/phone-2.png", "./screenshots/phone-3.png"],
+      "tablet": ["./screenshots/tablet-1.png", "./screenshots/tablet-2.png"]
+    }
+  },
+  "availability": {
+    "territories": [
+      "USA", "CAN", "GBR", "DEU", "FRA", "ESP", "ITA", "NLD", "BEL", "AUT",
+      "CHE", "SWE", "NOR", "DNK", "FIN", "IRL", "AUS", "NZL", "JPN", "KOR"
+    ],
+    "primaryTerritory": "USA"
+  }
+}

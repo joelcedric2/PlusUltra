@@ -1,0 +1,130 @@
+// Temporal Code Intelligence (TCI) Database Schema
+// Stores analysis results, outcomes, patterns, and learning data
+
+model TCIAnalysis {
+  id                String   @id @default(cuid())
+  userId            String
+  codeHash          String   // SHA-256 hash of analyzed code
+  code              String   @db.Text
+  context           Json     // Project context (imports, dependencies, etc.)
+
+  // Analysis Results
+  visualInsights    Json     // VisualInsights from DeepSeek OCR
+  causalChain       Json?    // CausalChain from Claude (null if no change proposed)
+  historicalInsights Json    // HistoricalInsights from GPT-5
+  logicVerification Json     // LogicVerification from Grok
+  finalVerdict      Json     // TCIVerdict from Gemini synthesis
+
+  // Metrics
+  confidence        Float    // 0-1 overall confidence
+  overallRisk       Float    // 0-10 risk score
+  timeElapsedMs     Int      // Time taken for analysis
+  costUSD           Float    // Cost of analysis
+
+  // Metadata
+  analysisType      String   // 'full' | 'quick' (for tier-based access)
+  userTier          String   // 'free' | 'starter' | 'pro' | 'enterprise'
+  createdAt         DateTime @default(now())
+
+  // Relations
+  outcome           TCIOutcome?
+
+  @@index([userId, createdAt])
+  @@index([codeHash])
+}
+
+model TCIOutcome {
+  id              String       @id @default(cuid())
+  analysisId      String       @unique
+  analysis        TCIAnalysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  // Actual Outcome
+  status          String       // 'shipped' | 'refactored' | 'rejected'
+  bugsFound       Json         // Array of actual bugs discovered
+  breakingChanges Json         // Array of actual breaking changes
+  userFeedback    String?      @db.Text
+
+  // Accuracy Tracking
+  visualCorrect   Boolean      // Was visual analysis accurate?
+  causalCorrect   Boolean      // Was causal analysis accurate?
+  historicalCorrect Boolean    // Was historical analysis accurate?
+  logicCorrect    Boolean      // Was logic verification accurate?
+  synthesisCorrect Boolean     // Was synthesis accurate?
+  overallAccuracy Float        // 0-1 overall accuracy
+
+  // Metadata
+  createdAt       DateTime     @default(now())
+
+  @@index([createdAt])
+}
+
+model TCIPattern {
+  id              String   @id @default(cuid())
+
+  // Pattern Definition
+  name            String
+  description     String   @db.Text
+  category        String   // 'bug' | 'vulnerability' | 'anti-pattern' | 'best-practice'
+  severity        String   // 'HIGH' | 'MEDIUM' | 'LOW'
+
+  // Pattern Matching
+  codeSignature   String   @db.Text  // Regex or AST pattern
+  visualSignature Json?              // Visual patterns (color, density, etc.)
+
+  // Statistics
+  occurrenceCount Int      @default(0)
+  detectionCount  Int      @default(0)  // How many times TCI detected it
+  missedCount     Int      @default(0)  // How many times TCI missed it
+  accuracy        Float    @default(0)  // detectionCount / (detectionCount + missedCount)
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([name])
+  @@index([category, severity])
+  @@index([accuracy])
+}
+
+model ModelWeight {
+  id              String   @id @default(cuid())
+
+  // Model Info
+  model           String   // 'deepseek' | 'claude' | 'gpt5' | 'grok' | 'gemini'
+  analysisType    String   // 'visual' | 'causal' | 'historical' | 'logic' | 'synthesis'
+
+  // Weights
+  currentWeight   Float    @default(1.0)
+  accuracy        Float    @default(0.5)
+  totalAnalyses   Int      @default(0)
+  correctPredictions Int   @default(0)
+
+  // Metadata
+  lastUpdated     DateTime @updatedAt
+
+  @@unique([model, analysisType])
+  @@index([accuracy])
+}
+
+model TCIFeedback {
+  id              String   @id @default(cuid())
+  userId          String
+  analysisId      String
+
+  // Feedback
+  rating          Int      // 1-5 stars
+  wasHelpful      Boolean
+  comment         String?  @db.Text
+
+  // Specific Layer Feedback
+  visualHelpful   Boolean?
+  causalHelpful   Boolean?
+  historicalHelpful Boolean?
+  logicHelpful    Boolean?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([analysisId])
+  @@index([createdAt])
+}

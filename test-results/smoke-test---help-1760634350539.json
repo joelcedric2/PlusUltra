@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-10-16T17:05:50.540Z",
+  "config": {
+    "platform": "--help",
+    "device": "Pixel_7_API_33",
+    "testDuration": 30
+  },
+  "results": [
+    {
+      "platform": "--help",
+      "device": "Pixel_7_API_33",
+      "testPassed": false,
+      "metrics": {
+        "installTime": 0,
+        "launchTime": 0,
+        "memoryUsage": 0,
+        "cpuUsage": 0
+      },
+      "errors": [
+        "Command failed: emulator -avd \"Pixel_7_API_33\" -no-window -no-audio -no-boot-anim\n/bin/sh: emulator: command not found\n"
+      ]
+    }
+  ],
+  "summary": {
+    "totalTests": 1,
+    "passedTests": 0,
+    "failedTests": 1,
+    "avgInstallTime": 0,
+    "avgLaunchTime": 0
+  }
+}

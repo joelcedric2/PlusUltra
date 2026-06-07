@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  sandbox:
+    build:
+      context: .
+      dockerfile: ./sandbox/docker/Dockerfile
+    container_name: plusultra-sandbox
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./generated-projects:/app/generated-projects
+      - ./sandbox/workspace:/app/workspace
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - plusultra-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: plusultra-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - plusultra-network
+    restart: unless-stopped
+
+  # Optional: Add a MongoDB or PostgreSQL for data persistence
+  # mongodb:
+  #   image: mongo:5
+  #   container_name: plusultra-mongodb
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb-data:/data/db
+  #   networks:
+  #     - plusultra-network
+
+volumes:
+  redis-data:
+    driver: local
+  # mongodb-data:
+  #   driver: local
+
+networks:
+  plusultra-network:
+    driver: bridge

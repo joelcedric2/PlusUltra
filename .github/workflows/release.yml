@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: 18
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build application
+        run: npm run build
+
+  build-mobile:
+    name: Build Mobile Apps
+    runs-on: ubuntu-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        platform: [ios, android]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Ruby (for iOS)
+        if: matrix.platform == 'ios'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Setup Java (for Android)
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g @expo/eas-cli
+
+      - name: Build for ${{ matrix.platform }}
+        run: eas build --platform ${{ matrix.platform }} --profile production --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}-build
+          path: |
+            *.ipa
+            *.aab
+            *.apk
+
+  deploy-mobile:
+    name: Deploy Mobile Apps
+    runs-on: ubuntu-latest
+    needs: build-mobile
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        platform: [ios, android]
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.platform }}-build
+
+      - name: Upload iOS dSYMs to Sentry
+        if: matrix.platform == 'ios' && success()
+        run: |
+          echo "📊 Uploading iOS dSYMs to Sentry..."
+          # Download dSYMs from EAS build
+          # Upload to Sentry for crash symbolication
+          echo "iOS dSYM upload implementation here"
+          # curl -X POST "https://sentry.io/api/0/projects/${SENTRY_ORG}/${SENTRY_PROJECT}/files/dsyms/" \
+          #   -H "Authorization: Bearer ${SENTRY_AUTH_TOKEN}" \
+          #   -F file=@build/ios/*.dSYM.zip
+
+      - name: Upload Android ProGuard mappings to Sentry
+        if: matrix.platform == 'android' && success()
+        run: |
+          echo "📊 Uploading Android ProGuard mappings to Sentry..."
+          # Extract ProGuard mappings from APK
+          # Upload to Sentry for crash symbolication
+          echo "Android ProGuard mapping upload implementation here"
+          # curl -X POST "https://sentry.io/api/0/projects/${SENTRY_ORG}/${SENTRY_PROJECT}/files/proguard/" \
+          #   -H "Authorization: Bearer ${SENTRY_AUTH_TOKEN}" \
+          #   -F file=@build/android/mapping.txt
+
+      - name: Deploy iOS to TestFlight
+        if: matrix.platform == 'ios'
+        run: |
+          echo "🚀 Deploying iOS to TestFlight..."
+          # Setup fastlane
+          gem install fastlane
+          cd mobile
+          # Configure fastlane credentials from secrets
+          echo "APPLE_ID=${{ secrets.APPLE_ID }}" >> .env
+          echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}" >> .env
+          echo "APP_STORE_CONNECT_PRIVATE_KEY=${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}" >> .env
+          # Run fastlane
+          fastlane ios upload_to_testflight
+
+      - name: Deploy Android to Play Store
+        if: matrix.platform == 'android'
+        run: |
+          echo "🚀 Deploying Android to Google Play..."
+          # Setup fastlane
+          gem install fastlane
+          cd mobile
+          # Configure fastlane credentials from secrets
+          echo "GOOGLE_PLAY_JSON_KEY=${{ secrets.GOOGLE_PLAY_JSON_KEY }}" >> .env
+          # Run fastlane
+          fastlane android supply
+
+  deploy-web:
+    name: Deploy Web Application
+    runs-on: ubuntu-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying web application"
+          # Implementation depends on your hosting provider
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [deploy-mobile, deploy-web]
+    if: always()
+    steps:
+      - name: Notify success
+        if: needs.deploy-mobile.result == 'success' && needs.deploy-web.result == 'success'
+        run: |
+          echo "✅ Release completed successfully!"
+          # Send notifications to Slack/Teams/etc
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Release failed!"
+          # Send failure notifications

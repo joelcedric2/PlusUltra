@@ -1,0 +1,53 @@
+{
+  "storeConfig": {
+    "packageName": "com.plusultra.app",
+    "versionCode": 1,
+    "versionName": "1.0.0"
+  },
+  "localization": {
+    "default": "en-US",
+    "supported": ["en-US", "es-ES", "fr-FR", "de-DE", "ja-JP", "ko-KR", "pt-BR", "ru-RU"]
+  },
+  "listings": {
+    "en-US": {
+      "title": "PlusUltra - AI App Development",
+      "shortDescription": "Transform ideas into apps with AI-powered development platform",
+      "fullDescription": "PlusUltra revolutionizes app development with AI-powered code generation, real-time collaboration, and multi-platform exports.\n\n🚀 **Key Features:**\n• AI-powered code generation from natural language\n• Real-time collaborative editing\n• Multi-platform exports (React Native, Flutter, SwiftUI)\n• Enterprise-grade security and compliance\n• Advanced testing and deployment automation\n• Temporal Code Intelligence for time-aware AI\n\n🎯 **Why PlusUltra?**\n• Most advanced AI development platform available\n• Enterprise-grade reliability and security\n• Real-time collaboration with conflict resolution\n• Automated compliance and security validation\n• Multi-platform deployment with store automation\n\n📱 **Perfect For:**\n• Startups building MVPs quickly\n• Enterprises requiring secure, compliant apps\n• Development teams needing collaboration tools\n• Product managers prototyping ideas rapidly\n• Developers exploring new technologies\n\n🔒 **Security & Compliance:**\n• GDPR, HIPAA, SOX compliance\n• End-to-end encryption\n• Audit trails and RBAC\n• SOC2 certified infrastructure",
+      "video": "https://plusultra.dev/demo-video"
+    },
+    "es-ES": {
+      "title": "PlusUltra - Desarrollo de Apps con IA",
+      "shortDescription": "Transforma ideas en apps con plataforma de desarrollo impulsada por IA",
+      "fullDescription": "PlusUltra revoluciona el desarrollo de apps con generación de código impulsada por IA, colaboración en tiempo real y exportaciones multiplataforma."
+    }
+  },
+  "contact": {
+    "email": "contact@plusultra.dev",
+    "phone": "+1-555-0123",
+    "website": "https://plusultra.dev"
+  },
+  "categories": ["PRODUCTIVITY", "BUSINESS"],
+  "testing": {
+    "enableGooglePlayTesting": true,
+    "enableInternalAppSharing": true
+  },
+  "assets": {
+    "icon": "./assets/icon.png",
+    "featureGraphic": "./assets/feature-graphic.png",
+    "screenshots": {
+      "phone": ["./screenshots/phone-1.png", "./screenshots/phone-2.png", "./screenshots/phone-3.png"],
+      "sevenInch": ["./screenshots/tablet-1.png", "./screenshots/tablet-2.png"],
+      "tenInch": ["./screenshots/tablet-1.png"]
+    }
+  },
+  "availability": {
+    "countries": [
+      "US", "CA", "GB", "DE", "FR", "ES", "IT", "NL", "BE", "AT",
+      "CH", "SE", "NO", "DK", "FI", "IE", "AU", "NZ", "JP", "KR"
+    ]
+  },
+  "pricing": "free",
+  "contentRating": {
+    "rating": "Everyone"
+  }
+}
