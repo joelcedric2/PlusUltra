@@ -1,8 +1,8 @@
 # PlusUltra
 
-**One AI model gets it wrong sometimes. Five models debating each other almost never do.**
+**OpenRouter picks the cheapest model. PlusUltra makes five of them argue until they find the right answer.**
 
-PlusUltra is a 4-dimensional temporal intelligence council where multiple LLMs argue, challenge, and converge on the best possible answer -- then the system remembers what it learned for next time.
+A 4-dimensional temporal intelligence council where multiple LLMs debate, challenge each other's reasoning, and converge on answers no single model could reach alone. The system remembers what worked — so the next answer is sharper than the last.
 
 ## Why This Exists
 
